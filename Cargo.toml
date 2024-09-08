@@ -1,0 +1,11 @@
+[package]
+name = "git_cer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.87"
+clap = "4.5.17"
+flate2 = "1.0.33"
+hex = "0.4.3"
+sha1 = "0.10.6"
