@@ -2,6 +2,8 @@
 use std::env;
 use std::fs;
 
+pub(crate) mod commands;
+pub(crate) mod objects;
 use clap::{Parser, Subcommand};
 
 
@@ -16,15 +18,16 @@ struct Args {
 #[derive(Debug, Subcommand)]
 enum Command {
     Init,
+    CatFile {
+        #[clap(short = 'p')]
+        pretty_print: bool,
+        object_hash: String
+    },
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    println!("Logs from your program will appear here!");
-
-    // Uncomment this block to pass the first stage
     match args.command {
         Command::Init => {
             fs::create_dir(".git").unwrap();
@@ -32,6 +35,9 @@ fn main() {
             fs::create_dir(".git/refs").unwrap();
             fs::write(".git/HEAD", "ref: refs/heads/main\n").unwrap();
             println!("Initialized git directory")
-        }
+        },
+        Command::CatFile { pretty_print, object_hash }
+            => commands::cat_file::invoke(pretty_print, &object_hash)?,
     }
+    Ok(())
 }
