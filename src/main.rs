@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use std::env;
-use std::fs;
+use std::{fs, path::PathBuf};
 
 pub(crate) mod commands;
 pub(crate) mod objects;
@@ -23,6 +23,11 @@ enum Command {
         pretty_print: bool,
         object_hash: String
     },
+    HashObject {
+        #[clap(short = 'w')]
+        save: bool,
+        file: PathBuf
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -38,6 +43,8 @@ fn main() -> anyhow::Result<()> {
         },
         Command::CatFile { pretty_print, object_hash }
             => commands::cat_file::invoke(pretty_print, &object_hash)?,
+        Command::HashObject { save, file }
+            => commands::hash_object::invoke(save, &file)?,
     }
     Ok(())
 }
