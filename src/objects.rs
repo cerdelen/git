@@ -23,9 +23,9 @@ pub(crate) enum Kind {
 impl fmt::Display for Kind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Kind::Blob => write!(f, "Blob"),
-            Kind::Tree => write!(f, "Tree"),
-            Kind::Commit => write!(f, "Commit"),
+            Kind::Blob => write!(f, "blob"),
+            Kind::Tree => write!(f, "tree"),
+            Kind::Commit => write!(f, "commit"),
         }
     }
 }
@@ -111,8 +111,8 @@ where
 
         let hash_hex = hex::encode(hash);
 
-        fs::create_dir(format!(".git/objects/{}", &hash_hex[..2]))
-            .context("create parent folder of first 2 bytes of hash")?;
+        let _ = fs::create_dir(format!(".git/objects/{}", &hash_hex[..2]))
+            .context("create parent folder of first 2 bytes of hash");
 
         fs::rename(temp, format!(".git/objects/{}/{}", &hash_hex[..2], &hash_hex[2..]))
             .context("move obj file to right place")?;
