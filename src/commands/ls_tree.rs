@@ -11,23 +11,11 @@ pub(crate) fn invoke(name_only: bool, tree_hash: &str) -> anyhow::Result<()> {
 
     match obj.kind {
         Kind::Tree => {
-            // entries are stores as follows
-            // <mode> <name>\0<sha>
-            // so i gotta loop until im done reading and always split until 0
-            // and read into a buffer of length [u8,20] which i can somehow decode then
-            // let hash = hex::encode(&hashbuf); like this??
             let mut buf = Vec::new();
             let mut hash_buf = [0; 20];
             let mut stdout = std::io::stdout().lock();
             loop {
-                if obj
-                    .reader
-                    .read_until(0, &mut buf)
-                    .context("reading object")?
-                    == 0
-                {
-                    break;
-                }
+                if obj .reader .read_until(0, &mut buf) .context("reading object")? == 0 { break; }
                 obj.reader
                     .read_exact(&mut hash_buf[..])
                     .context("reading 20 bytes for hash")?;
@@ -55,16 +43,11 @@ pub(crate) fn invoke(name_only: bool, tree_hash: &str) -> anyhow::Result<()> {
                             .context("write tree entry name to stdout")?;
                     }
                 };
-
                 buf.clear();
                 writeln!(stdout, "").context("new line to stdout")?;
-            }
-            let mut stdout = std::io::stdout().lock();
-            let _n = std::io::copy(&mut obj.reader, &mut stdout)
-                .context("write .git/objects cat-file to stdout")?;
-        }
-        _ => println!("Not a Tree Object!"),
+            } // loop
+        } // match
+        _ => anyhow::bail!("Not a Tree obj but: {}", obj.kind),
     };
-
     Ok(())
 }
