@@ -11,13 +11,8 @@ pub(crate) fn invoke(name_only: bool, tree_hash: &str) -> anyhow::Result<()> {
 
     match obj.kind {
         Kind::Tree => {
-            println!("found tree");
             // entries are stores as follows
             // <mode> <name>\0<sha>
-            //
-            //
-            //
-            //
             // so i gotta loop until im done reading and always split until 0
             // and read into a buffer of length [u8,20] which i can somehow decode then
             // let hash = hex::encode(&hashbuf); like this??
