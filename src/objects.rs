@@ -89,6 +89,7 @@ impl<R> Object<R>
 where
     R: Read,
 {
+    // create hash from obj
     pub(crate) fn write(mut self, writer: impl Write) -> anyhow::Result<[u8; 20]> {
         let writer = ZlibEncoder::new(writer, Compression::default());
         let mut writer = HashWriter {
@@ -104,6 +105,7 @@ where
         Ok(hash.into())
     }
 
+    // make ob in .git/objects folder
     pub(crate) fn write_obj(self) -> anyhow::Result<[u8; 20]> {
         let temp = "temporary";
         let hash = self.write(std::fs::File::create(temp).context("couldn't create temp for obj")?)
