@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use anyhow::Context;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
@@ -11,7 +12,11 @@ use std::fs;
 // use std::fs;
 use std::io::prelude::*;
 use std::io::BufReader;
+use std::io::Cursor;
+use std::os::unix::ffi::OsStringExt;
 use std::path::Path;
+
+use crate::commands::write_tree::TreeEntry;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Kind {
@@ -37,6 +42,24 @@ pub(crate) struct Object<R> {
 }
 
 impl Object<()> {
+    pub(crate) fn tree_obj_from_vec(entries: &Vec<TreeEntry>) -> anyhow::Result<Object<impl Read>> {
+        let mut buffer: Vec<u8> = Vec::new();
+        for entry in entries {
+            buffer.extend(format!("{:06o} ", entry.mode).as_bytes());
+            buffer.extend(entry.name.clone().into_vec());
+            buffer.extend(format!("\0 ").as_bytes());
+            buffer.extend(entry.hash);
+        }
+        let lol = String::from_utf8_lossy(&buffer);
+        println!("size: {} entries.len: {} '{}'\n", buffer.len(), entries.len(), lol);
+
+
+        Ok(Object {
+            kind: Kind::Tree,
+            expected_size: buffer.len() as u64,
+            reader: Cursor::new(buffer),
+        })
+    }
     pub(crate) fn blob_from_file(path: impl AsRef<Path>) -> anyhow::Result<Object<impl Read>> {
         let file = path.as_ref();
         let stat = std::fs::metadata(file).with_context(|| format!("stat {}", file.display()))?;
@@ -97,6 +120,7 @@ where
             hasher: Sha1::new(),
         };
 
+        println!("{} {}\0", self.kind, self.expected_size);
         write!(writer, "{} {}\0", self.kind, self.expected_size)?;
         std::io::copy(&mut self.reader, &mut writer).context("copy hash into Object")?;
         let _ = writer.writer.finish();
@@ -108,6 +132,21 @@ where
     // make ob in .git/objects folder
     pub(crate) fn write_obj(self) -> anyhow::Result<[u8; 20]> {
         let temp = "temporary";
+        // let hash = match self.kind {
+        //     Kind::Blob => self.write(std::fs::File::create(temp).context("couldn't create temp for obj")?)
+        //     .context("couldn't write to temp")?,
+        //
+        //     Kind::Tree => {
+        //     },
+        //     Kind::Commit => anyhow::bail!("I dont know how to make Commits yet!"),
+        // };
+
+        let kind = match self.kind {
+            Kind::Blob => Kind::Blob,
+            Kind::Tree => Kind::Tree,
+            Kind::Commit => Kind::Commit,
+        };
+
         let hash = self.write(std::fs::File::create(temp).context("couldn't create temp for obj")?)
             .context("couldn't write to temp")?;
 
@@ -118,6 +157,8 @@ where
 
         fs::rename(temp, format!(".git/objects/{}/{}", &hash_hex[..2], &hash_hex[2..]))
             .context("move obj file to right place")?;
+
+        println!("writing an object {} to {}", kind, hash_hex);
 
         Ok(hash)
     }
