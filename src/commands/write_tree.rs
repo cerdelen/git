@@ -1,5 +1,5 @@
 use core::panic;
-use std::{ffi::{OsStr, OsString}, io::BufRead, path::{Path, PathBuf}};
+use std::{ffi::{OsStr, OsString}, io::BufRead, os::unix::fs::{MetadataExt, PermissionsExt}, path::{Path, PathBuf}};
 
 use anyhow::Context;
 
@@ -9,6 +9,7 @@ struct TreeEntry<'a, R> {
     // this cannot be not a reference because of not knowing size beforehand
     name: &'a OsStr,
     obj: Object<R>,
+    // rights:
 }
 
 
@@ -19,24 +20,31 @@ fn recursive_tree_write(path: &Path) -> anyhow::Result<[u8;20]>{
         let entry = entry.context("entry is error")?;
         let path = entry.path();
         let temp_name = path.file_name().unwrap();
-        // let l = Object::blob_from_file(&path).context("makning obj from entry")?;
-        // l.write_obj().with_context(|| format!("trying to create .git/object for "))?;
         vecc.push(temp_name);
-        // let te = TreeEntry{name: path.file_name().unwrap().to_owned(), obj: l};
         if let Some(dir_name) = path.file_name() {
             if dir_name== ".git" || dir_name == "target" {
                 continue;
             }
         }
+        let mode: u32;
+        let kind: &str;
+        let mut hash: [u8;20] = [0;20];
         if path.is_file() {
-        // println!("file: {}", entry.path().display());
+            let blob = Object::blob_from_file(entry.path()).context("making blob from dir entry")?;
+            hash = blob.write_obj().context("write blob into .git/objects")?;
+            mode = entry.metadata().unwrap().mode();
+            kind = "blob";
         } else if path.is_dir() {
             recursive_tree_write(&path)?;
+            mode = 0o040000;
+            kind = "tree";
             // println!("directory: {}", entry.path().display());
         } else {
-            // anyhow::bail!("what even is this entry type? {:?}", entry);
+            anyhow::bail!("what even is this entry type? {:?}", entry);
         }
+        println!("{:06o} {} {} {:?}", mode, kind, hex::encode(hash), entry.file_name());
     }
+    // create tree object
     println!("end of a dir {:?}", path.file_name());
     Ok([1;20])
 }
