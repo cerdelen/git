@@ -45,14 +45,11 @@ impl Object<()> {
     pub(crate) fn tree_obj_from_vec(entries: &Vec<TreeEntry>) -> anyhow::Result<Object<impl Read>> {
         let mut buffer: Vec<u8> = Vec::new();
         for entry in entries {
-            buffer.extend(format!("{:06o} ", entry.mode).as_bytes());
+            buffer.extend(format!("{:06o} {} ", entry.mode, entry.kind).as_bytes());
             buffer.extend(entry.name.clone().into_vec());
-            buffer.extend(format!("\0 ").as_bytes());
+            buffer.extend(format!("\0").as_bytes());
             buffer.extend(entry.hash);
         }
-        let lol = String::from_utf8_lossy(&buffer);
-        println!("size: {} entries.len: {} '{}'\n", buffer.len(), entries.len(), lol);
-
 
         Ok(Object {
             kind: Kind::Tree,
@@ -120,7 +117,6 @@ where
             hasher: Sha1::new(),
         };
 
-        println!("{} {}\0", self.kind, self.expected_size);
         write!(writer, "{} {}\0", self.kind, self.expected_size)?;
         std::io::copy(&mut self.reader, &mut writer).context("copy hash into Object")?;
         let _ = writer.writer.finish();
@@ -157,8 +153,6 @@ where
 
         fs::rename(temp, format!(".git/objects/{}/{}", &hash_hex[..2], &hash_hex[2..]))
             .context("move obj file to right place")?;
-
-        println!("writing an object {} to {}", kind, hash_hex);
 
         Ok(hash)
     }

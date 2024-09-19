@@ -47,7 +47,6 @@ fn recursive_tree_write(path: &Path) -> anyhow::Result<[u8;20]>{
             anyhow::bail!("what even is this entry type? {:?}", entry);
         };
         vecc.push(tree_entry);
-        // println!("{:06o} {} {} {:?}", tree_entry.mode, tree_entry.kind, hex::encode(tree_entry.hash), entry.file_name());
     }
     // create tree object
 
@@ -59,21 +58,6 @@ fn recursive_tree_write(path: &Path) -> anyhow::Result<[u8;20]>{
 
 // implementation of tree-write (excludes .git folder but nothing else)
 pub(crate) fn invoke() ->anyhow::Result<()> {
-
-    println!("invoked tree write");
-    // i have to recursivley create hashes for all directories i find in my dir
-
-
-    // read curr dir
-    // iter over all entries
-    //      if file -> blob and store it in temp vec
-    //      if dir recursively do all of this
-    //      from temp vec with recursively read dirs and all blobs create tree obj
-    //      (find out how to sort this temp vec so the tree obj are right order and hashes are same
-    //      as in git)
-    //      apparently alphabetically by the name of file/dir
-    //       vec.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
-
     let hash = recursive_tree_write(std::path::Path::new("./"))?;
     println!("{}", hex::encode(hash));
 
