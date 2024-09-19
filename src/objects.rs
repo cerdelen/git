@@ -45,7 +45,7 @@ impl Object<()> {
     pub(crate) fn tree_obj_from_vec(entries: &Vec<TreeEntry>) -> anyhow::Result<Object<impl Read>> {
         let mut buffer: Vec<u8> = Vec::new();
         for entry in entries {
-            buffer.extend(format!("{:06o} {} ", entry.mode, entry.kind).as_bytes());
+            buffer.extend(format!("{:06o} ", entry.mode).as_bytes());
             buffer.extend(entry.name.clone().into_vec());
             buffer.extend(format!("\0").as_bytes());
             buffer.extend(entry.hash);
