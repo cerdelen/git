@@ -2,13 +2,11 @@ use anyhow::Context;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
-// use flate2::Compression;
 use sha1::Digest;
 use sha1::Sha1;
 use std::ffi::CStr;
 use std::fmt;
 use std::fs;
-// use std::fs;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::io::Cursor;
@@ -41,16 +39,52 @@ pub(crate) struct Object<R> {
 }
 
 impl Object<()> {
-    // pub(crate) fn commit_obj(tree_hash: &str, parents: Option<&str>, author: String, commiter: String, commit_message: &str) -> anyhow::Result<Object<impl Read>> {
-    //
-    //     Ok(Object {
-    //         kind: Kind::Tree,
-    //         expected_size: buffer.len() as u64,
-    //         reader: Cursor::new(buffer),
-    //     })
-    // }
+    pub(crate) fn commit_obj(
+        tree_hash: &str,
+        author: &str,
+        email: &str,
+        commit_message: &str,
+        parent: Option<&str>,
+    ) -> anyhow::Result<Object<impl Read>> {
+        use std::fmt::Write;
+        let mut commit = String::new();
 
-    pub(crate) fn tree_obj_from_vec(mut entries: Vec<TreeEntry>) -> anyhow::Result<Object<impl Read>> {
+        let time = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .context("current system time is before UNIX epoch")?;
+
+        writeln!(commit, "tree {tree_hash}")?;
+
+        if let Some(parent_hash) = parent {
+            writeln!(commit, "parent {parent_hash}")?;
+        }
+
+        // author line
+        writeln!(commit, "author {author} <{email}> {} +0000", time.as_secs())?;
+
+        // commiter line
+        writeln!(
+            commit,
+            "commiter {author} <{email}> {} +0000",
+            time.as_secs()
+        )?;
+
+        // empty line
+        writeln!(commit, "")?;
+
+        // commit message
+        writeln!(commit, "{commit_message}")?;
+
+        Ok(Object {
+            kind: Kind::Commit,
+            expected_size: commit.len() as u64,
+            reader: Cursor::new(commit),
+        })
+    }
+
+    pub(crate) fn tree_obj_from_vec(
+        mut entries: Vec<TreeEntry>,
+    ) -> anyhow::Result<Object<impl Read>> {
         // sort tree by alphabetical order of name(?)
         entries.sort_by(|a, b| {
             let mut name_a = a.name.clone();
@@ -77,6 +111,7 @@ impl Object<()> {
             reader: Cursor::new(buffer),
         })
     }
+
     pub(crate) fn blob_from_file(path: impl AsRef<Path>) -> anyhow::Result<Object<impl Read>> {
         let file = path.as_ref();
         let stat = std::fs::metadata(file).with_context(|| format!("stat {}", file.display()))?;
@@ -149,7 +184,8 @@ where
     pub(crate) fn write_obj(self) -> anyhow::Result<[u8; 20]> {
         let temp = "temporary";
 
-        let hash = self.write(std::fs::File::create(temp).context("couldn't create temp for obj")?)
+        let hash = self
+            .write(std::fs::File::create(temp).context("couldn't create temp for obj")?)
             .context("couldn't write to temp")?;
 
         let hash_hex = hex::encode(hash);
@@ -157,8 +193,11 @@ where
         let _ = fs::create_dir(format!(".git/objects/{}", &hash_hex[..2]))
             .context("create parent folder of first 2 bytes of hash");
 
-        fs::rename(temp, format!(".git/objects/{}/{}", &hash_hex[..2], &hash_hex[2..]))
-            .context("move obj file to right place")?;
+        fs::rename(
+            temp,
+            format!(".git/objects/{}/{}", &hash_hex[..2], &hash_hex[2..]),
+        )
+        .context("move obj file to right place")?;
 
         Ok(hash)
     }

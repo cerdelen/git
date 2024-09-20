@@ -1,5 +1,7 @@
 use std::env;
 
+use anyhow::Context;
+
 use crate::objects::Object;
 
 fn write_commit(message: &str, tree_hash: &str, parent_hash: Option<&str>) -> anyhow::Result<[u8;20]> {
@@ -19,27 +21,15 @@ fn write_commit(message: &str, tree_hash: &str, parent_hash: Option<&str>) -> an
             )
         };
 
-    println!("name: {}, email: {}", name, email);
-    if let Some(parent) = parent_hash {
-        println!("parent: {}", parent);
-    } else {
-        println!("No Parent hash");
-    }
-    println!("commit message: {}", message);
-    println!("tree_hash: {}", tree_hash);
-    // let obj = Object::commit_obj();
-    Ok([1;20])
+    let obj = Object::commit_obj(tree_hash, &name, &email, message, parent_hash).context("making commit object")?;
+    let hash = obj.write_obj().context("couldnt write tree obj to .git/objects")?;
+    Ok(hash)
 }
 
 pub(crate) fn invoke(parent_hash: Option<String>, commit_message: String, tree_hash: String) ->anyhow::Result<()> {
-
-
     let hash = write_commit(&commit_message, &tree_hash, parent_hash.as_deref())?;
 
     println!("{}", hex::encode(hash));
 
     Ok(())
-
-
-
 }
