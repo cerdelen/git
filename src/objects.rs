@@ -41,6 +41,15 @@ pub(crate) struct Object<R> {
 }
 
 impl Object<()> {
+    // pub(crate) fn commit_obj(tree_hash: &str, parents: Option<&str>, author: String, commiter: String, commit_message: &str) -> anyhow::Result<Object<impl Read>> {
+    //
+    //     Ok(Object {
+    //         kind: Kind::Tree,
+    //         expected_size: buffer.len() as u64,
+    //         reader: Cursor::new(buffer),
+    //     })
+    // }
+
     pub(crate) fn tree_obj_from_vec(mut entries: Vec<TreeEntry>) -> anyhow::Result<Object<impl Read>> {
         // sort tree by alphabetical order of name(?)
         entries.sort_by(|a, b| {

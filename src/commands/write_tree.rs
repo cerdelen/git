@@ -1,5 +1,4 @@
-use core::panic;
-use std::{ffi::{OsStr, OsString}, io::{BufRead, Write}, os::unix::fs::{MetadataExt, PermissionsExt}, path::{Path, PathBuf}};
+use std::{ffi::OsString, os::unix::fs::MetadataExt, path::Path};
 
 use anyhow::Context;
 
