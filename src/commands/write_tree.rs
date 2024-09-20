@@ -50,7 +50,7 @@ fn recursive_tree_write(path: &Path) -> anyhow::Result<[u8;20]>{
     }
     // create tree object
 
-    let tree_obj = Object::tree_obj_from_vec(&vecc).context("couldnt create tree obj from entries vec")?;
+    let tree_obj = Object::tree_obj_from_vec(vecc).context("couldnt create tree obj from entries vec")?;
     let hash = tree_obj.write_obj().context("couldnt write tree obj to .git/objects")?;
 
     Ok(hash)

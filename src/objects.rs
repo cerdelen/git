@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use anyhow::Context;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
@@ -42,7 +41,19 @@ pub(crate) struct Object<R> {
 }
 
 impl Object<()> {
-    pub(crate) fn tree_obj_from_vec(entries: &Vec<TreeEntry>) -> anyhow::Result<Object<impl Read>> {
+    pub(crate) fn tree_obj_from_vec(mut entries: Vec<TreeEntry>) -> anyhow::Result<Object<impl Read>> {
+        // sort tree by alphabetical order of name(?)
+        entries.sort_by(|a, b| {
+            let mut name_a = a.name.clone();
+            let mut name_b = b.name.clone();
+            if a.kind == Kind::Tree {
+                name_a.push("/");
+            }
+            if b.kind == Kind::Tree {
+                name_b.push("/");
+            }
+            name_a.cmp(&name_b)
+        });
         let mut buffer: Vec<u8> = Vec::new();
         for entry in entries {
             buffer.extend(format!("{:06o} ", entry.mode).as_bytes());
@@ -128,20 +139,6 @@ where
     // make ob in .git/objects folder
     pub(crate) fn write_obj(self) -> anyhow::Result<[u8; 20]> {
         let temp = "temporary";
-        // let hash = match self.kind {
-        //     Kind::Blob => self.write(std::fs::File::create(temp).context("couldn't create temp for obj")?)
-        //     .context("couldn't write to temp")?,
-        //
-        //     Kind::Tree => {
-        //     },
-        //     Kind::Commit => anyhow::bail!("I dont know how to make Commits yet!"),
-        // };
-
-        let kind = match self.kind {
-            Kind::Blob => Kind::Blob,
-            Kind::Tree => Kind::Tree,
-            Kind::Commit => Kind::Commit,
-        };
 
         let hash = self.write(std::fs::File::create(temp).context("couldn't create temp for obj")?)
             .context("couldn't write to temp")?;
