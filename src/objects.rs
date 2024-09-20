@@ -11,7 +11,11 @@ use std::fs;
 // use std::fs;
 use std::io::prelude::*;
 use std::io::BufReader;
+use std::io::Cursor;
+use std::os::unix::ffi::OsStringExt;
 use std::path::Path;
+
+use crate::commands::write_tree::TreeEntry;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Kind {
@@ -37,6 +41,33 @@ pub(crate) struct Object<R> {
 }
 
 impl Object<()> {
+    pub(crate) fn tree_obj_from_vec(mut entries: Vec<TreeEntry>) -> anyhow::Result<Object<impl Read>> {
+        // sort tree by alphabetical order of name(?)
+        entries.sort_by(|a, b| {
+            let mut name_a = a.name.clone();
+            let mut name_b = b.name.clone();
+            if a.kind == Kind::Tree {
+                name_a.push("/");
+            }
+            if b.kind == Kind::Tree {
+                name_b.push("/");
+            }
+            name_a.cmp(&name_b)
+        });
+        let mut buffer: Vec<u8> = Vec::new();
+        for entry in entries {
+            buffer.extend(format!("{:06o} ", entry.mode).as_bytes());
+            buffer.extend(entry.name.clone().into_vec());
+            buffer.extend(format!("\0").as_bytes());
+            buffer.extend(entry.hash);
+        }
+
+        Ok(Object {
+            kind: Kind::Tree,
+            expected_size: buffer.len() as u64,
+            reader: Cursor::new(buffer),
+        })
+    }
     pub(crate) fn blob_from_file(path: impl AsRef<Path>) -> anyhow::Result<Object<impl Read>> {
         let file = path.as_ref();
         let stat = std::fs::metadata(file).with_context(|| format!("stat {}", file.display()))?;
@@ -89,6 +120,7 @@ impl<R> Object<R>
 where
     R: Read,
 {
+    // create hash from obj
     pub(crate) fn write(mut self, writer: impl Write) -> anyhow::Result<[u8; 20]> {
         let writer = ZlibEncoder::new(writer, Compression::default());
         let mut writer = HashWriter {
@@ -104,8 +136,10 @@ where
         Ok(hash.into())
     }
 
+    // make ob in .git/objects folder
     pub(crate) fn write_obj(self) -> anyhow::Result<[u8; 20]> {
         let temp = "temporary";
+
         let hash = self.write(std::fs::File::create(temp).context("couldn't create temp for obj")?)
             .context("couldn't write to temp")?;
 
