@@ -4,6 +4,7 @@ use std::{fs, path::PathBuf};
 
 pub(crate) mod commands;
 pub(crate) mod objects;
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -39,6 +40,10 @@ enum Command {
         #[clap(short = 'm')]
         commit_message: String,
     },
+    Commit {
+        #[clap(short = 'm')]
+        commit_message: String,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -67,6 +72,45 @@ fn main() -> anyhow::Result<()> {
             commit_message,
             tree_hash,
         } => commands::commit_tree::invoke(parent_hash, commit_message, tree_hash)?,
+        Command::Commit { commit_message } => {
+            let head_ref =
+                std::fs::read_to_string(".git/HEAD").context("trying to read HEAD reference")?;
+            let Some(head_ref) = head_ref.strip_prefix("ref: ") else {
+                anyhow::bail!("no commit onto detached HEAD");
+            };
+            let head_ref = head_ref.trim();
+
+            let parent_hash = std::fs::read_to_string(format!(".git/{head_ref}"))
+                .with_context(|| format!("read HEAD reference '{head_ref}'"));
+
+            let tree = commands::write_tree::recursive_tree_write(std::path::Path::new("."))
+                .context("making tree object")?;
+
+            let parent_hash = match &parent_hash {
+                Ok(p) => Some(p.trim()),
+                Err(_) => None,
+            };
+
+            let commit = commands::commit_tree::write_commit(
+                &commit_message,
+                &hex::encode(tree),
+                parent_hash,
+            )
+            .context("create a real commit")?;
+
+            let commit = hex::encode(commit);
+
+            let p = format!(".git/{head_ref}");
+            let path = std::path::Path::new(&p);
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).context("create parent folders of HEAD reference")?;
+            }
+
+            std::fs::write(format!(".git/{head_ref}"), &commit)
+                .with_context(|| format!("updating HEAD reference {head_ref}"))?;
+
+            println!("new HEAD ref is now {}", &commit);
+        }
     }
     Ok(())
 }

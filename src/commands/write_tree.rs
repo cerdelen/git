@@ -15,7 +15,7 @@ pub(crate) struct TreeEntry {
 }
 
 
-fn recursive_tree_write(path: &Path) -> anyhow::Result<[u8;20]>{
+pub(crate) fn recursive_tree_write(path: &Path) -> anyhow::Result<[u8;20]>{
     let dir = std::fs::read_dir(path).context("reading curr dir")? ;
     let mut vecc: Vec<TreeEntry>= Vec::new();
     for entry in dir {

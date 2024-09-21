@@ -4,7 +4,7 @@ use anyhow::Context;
 
 use crate::objects::Object;
 
-fn write_commit(message: &str, tree_hash: &str, parent_hash: Option<&str>) -> anyhow::Result<[u8;20]> {
+pub(crate) fn write_commit(message: &str, tree_hash: &str, parent_hash: Option<&str>) -> anyhow::Result<[u8;20]> {
     let (name, email) =
         if let (Some(name), Some(email)) = (env::var_os("NAME"), env::var_os("EMAIL")) {
             let name = name
