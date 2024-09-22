@@ -44,6 +44,7 @@ enum Command {
         #[clap(short = 'm')]
         commit_message: String,
     },
+    Log,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -51,6 +52,10 @@ fn main() -> anyhow::Result<()> {
 
     match args.command {
         Command::Init => {
+            if std::fs::exists(".git").context("trying to check if .git exists")? {
+                println!("Already Initialized git directory");
+                return Ok(());
+            }
             fs::create_dir(".git").unwrap();
             fs::create_dir(".git/objects").unwrap();
             fs::create_dir(".git/refs").unwrap();
@@ -111,6 +116,7 @@ fn main() -> anyhow::Result<()> {
 
             println!("new HEAD ref is now {}", &commit);
         }
+        Command::Log => commands::log::invoke()?,
     }
     Ok(())
 }
