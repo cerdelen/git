@@ -33,10 +33,18 @@ impl Commit {
         obj.reader.read_until(b'\n', &mut parent_or_author_buf).context("parsing tree from commit")?;
         let mut splits = parent_or_author_buf.splitn(2, |&b| b == b' ');
         let line_type = splits.next().expect("split has always at least 1 output");
-        println!("praent or author buf == {:?}", parent_or_author_buf);
-        println!("line_type == {:?}", line_type);
+        println!("praent or author buf == {:?}", String::from_utf8(parent_or_author_buf.clone()).unwrap());
+        println!("line_type == {:?}", String::from_utf8(line_type.to_vec()).unwrap());
         if line_type == "parent".as_bytes() {
             let parent_slice = splits.next().context("parent line has no hash")?;
+            commit.parent = Some([0;20]);
+            println!("parent_slice == {:?}", String::from_utf8(parent_slice.to_vec()).unwrap());
+            let parent_20 = &parent_slice[0..40];
+            let mut other_buf: [u8;20] = [0;20];
+            hex::decode_to_slice(&parent_slice[0..40], &mut commit.parent.unwrap());
+
+            println!("hexed == {:?}", &hex::encode(other_buf));
+            println!("parent_20 == {:?}", String::from_utf8(parent_20.to_vec()).unwrap());
             commit.parent = Some(parent_slice[0..20].try_into().context("parent_hash not big enough")?);
             obj.reader.read_until(b'\n', &mut author_buf).context("parsing tree from commit")?;
             println!("found parent hash: {}", &hex::encode(commit.parent.unwrap()));
