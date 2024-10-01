@@ -15,6 +15,39 @@ use std::path::Path;
 
 use crate::commands::write_tree::TreeEntry;
 
+pub(crate) struct GitHash {
+    hash: [u8; 20],
+}
+impl fmt::Display for GitHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(self.hash))
+    }
+}
+
+impl GitHash {
+    fn from_str(hash: &str) -> anyhow::Result<Self> {
+        let mut buf = [0;20];
+        hex::decode_to_slice(hash, & mut buf).context("trying to create hash from str slice")?;
+        Ok(GitHash {
+            hash: buf,
+        })
+    }
+    fn from_slice(hash: &[u8; 20]) -> anyhow::Result<Self> {
+        Ok(GitHash {
+            hash: hash.clone(),
+        })
+    }
+    fn to_str(&self) -> String {
+        format!("{}", self)
+    }
+    fn hash_start(&self) -> [u8; 2] {
+        self.hash[0..2].try_into().expect("i make a slice of size 2 from a slice of size 20 but it fails?")
+    }
+    fn hash_end(&self) -> [u8; 2] {
+        self.hash[2..20].try_into().expect("i make a slice of size 2 from a slice of size 20 but it fails?")
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Kind {
     Blob,
@@ -165,7 +198,7 @@ where
     R: Read,
 {
     // create hash from obj
-    pub(crate) fn write(mut self, writer: impl Write) -> anyhow::Result<[u8; 20]> {
+    pub(crate) fn write(mut self, writer: impl Write) -> anyhow::Result<GitHash> {
         let writer = ZlibEncoder::new(writer, Compression::default());
         let mut writer = HashWriter {
             writer,
@@ -177,20 +210,20 @@ where
         let _ = writer.writer.finish();
         let hash = writer.hasher.finalize();
 
-        Ok(hash.into())
+        Ok(GitHash::from_slice(&hash.into())?)
     }
 
     // make ob in .git/objects folder
-    pub(crate) fn write_obj(self) -> anyhow::Result<[u8; 20]> {
+    pub(crate) fn write_obj(self) -> anyhow::Result<GitHash> {
         let temp = "temporary";
 
         let hash = self
             .write(std::fs::File::create(temp).context("couldn't create temp for obj")?)
             .context("couldn't write to temp")?;
 
-        let hash_hex = hex::encode(hash);
+        // let hash_hex = hex::encode(hash);
 
-        let _ = fs::create_dir(format!(".git/objects/{}", &hash_hex[..2]))
+        let _ = fs::create_dir(format!(".git/objects/{}", &hash.hash_end() &hash_hex[..2]))
             .context("create parent folder of first 2 bytes of hash");
 
         fs::rename(
