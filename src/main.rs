@@ -4,7 +4,7 @@ use std::{fs, path::PathBuf};
 
 pub(crate) mod commands;
 pub(crate) mod objects;
-use anyhow::Context;
+use anyhow::{anyhow, bail, Context, Error};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -46,15 +46,23 @@ enum Command {
     },
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<(), Error> {
     let args = Args::parse();
 
     match args.command {
         Command::Init => {
-            fs::create_dir(".git").unwrap();
-            fs::create_dir(".git/objects").unwrap();
-            fs::create_dir(".git/refs").unwrap();
-            fs::write(".git/HEAD", "ref: refs/heads/main\n").unwrap();
+            if let Err(e) = fs::create_dir(".git") {
+                bail!("Failed to create .git directory! {}", e);
+            };
+            if let Err(e) = fs::create_dir(".git/objects") {
+                bail!("Failed to create .git/objects directory! {}", e);
+            };
+            if let Err(e) = fs::create_dir(".git/refs") {
+                bail!("Failed to create .git/refs directory! {}", e);
+            };
+            if let Err(e) = fs::write(".git/HEAD", "ref: refs/heads/main\n") {
+                bail!("Failed to write to .git/HEAD! {}", e);
+            };
             println!("Initialized git directory")
         }
         Command::CatFile {
